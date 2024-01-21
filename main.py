@@ -32,7 +32,7 @@ from typing import Optional
 
 import torch
 from datasets import load_dataset
-from PIL import Image
+from PIL import Image, JpegImagePlugin
 from torchvision.io import ImageReadMode, read_image
 from torchvision.transforms import CenterCrop, ConvertImageDtype, Normalize, Resize
 from torchvision.transforms.functional import InterpolationMode
@@ -47,6 +47,8 @@ from transformers import (
     Trainer,
     TrainingArguments,
     set_seed,
+    CLIPImageProcessor,
+    CLIPTokenizer,
 )
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import send_example_telemetry
@@ -252,20 +254,6 @@ class Transform(torch.nn.Module):
         return x
 
 
-def collate_fn(examples):
-    pixel_values = torch.stack([example["pixel_values"] for example in examples])
-    input_ids = torch.tensor([example["input_ids"] for example in examples], dtype=torch.long)
-    attention_mask = torch.tensor(
-        [example["attention_mask"] for example in examples], dtype=torch.long
-    )
-    return {
-        "pixel_values": pixel_values,
-        "input_ids": input_ids,
-        "attention_mask": attention_mask,
-        "return_loss": True,
-    }
-
-
 def main():
     # 1. Parse input arguments
     # See all possible arguments in src/transformers/training_args.py
@@ -355,7 +343,6 @@ def main():
             data_args.dataset_name,
             data_args.dataset_config_name,
             cache_dir=model_args.cache_dir,
-            keep_in_memory=False,
             data_dir=data_args.data_dir,
             token=model_args.token,
         )
@@ -420,6 +407,8 @@ def main():
     )
     config = model.config
 
+    model = torch.compile(model)
+
     def _freeze_params(module):
         for param in module.parameters():
             param.requires_grad = False
@@ -477,18 +466,31 @@ def main():
     # We need to tokenize input captions and transform the images.
     def tokenize_captions(examples):
         captions = list(examples[caption_column])
-        text_inputs = tokenizer(
-            captions, max_length=data_args.max_seq_length, padding="max_length", truncation=True
+        image = list(examples[image_column])
+        text_inputs = tokenizer(captions, truncation=True, return_attention_mask=False)
+        image_inputs = image_processor(
+            image,
+            do_resize=True,
+            do_center_crop=True,
+            do_normalize=True,
+            size={"shortest_edge": config.vision_config.image_size},
+            image_mean=image_processor.image_mean,
+            image_std=image_processor.image_mean,
+            # return_tensors="pt",
         )
         examples["input_ids"] = text_inputs.input_ids
-        examples["attention_mask"] = text_inputs.attention_mask
+        examples["pixel_values"] = image_inputs.pixel_values
+
         return examples
 
     def transform_images(examples):
-        images = [
-            read_image(image_file, mode=ImageReadMode.RGB) for image_file in examples[image_column]
+        # images = [
+        #     read_image(image_file, mode=ImageReadMode.RGB) for image_file in examples[image_column]
+        # ]
+        images = [image_file for image_file in examples[image_column]]
+        examples["pixel_values"] = [
+            image_transformations(image_processor(image["pixel_values"])) for image in images
         ]
-        examples["pixel_values"] = [image_transformations(image) for image in images]
         return examples
 
     def filter_corrupt_images(examples):
@@ -511,11 +513,11 @@ def main():
             train_dataset = train_dataset.select(range(max_train_samples))
 
         with training_args.main_process_first():
-            train_dataset = train_dataset.filter(
-                filter_corrupt_images, 
-                batched=True, 
-                num_proc=data_args.preprocessing_num_workers,
-            )
+            # train_dataset = train_dataset.filter(
+            #     filter_corrupt_images,
+            #     batched=True,
+            #     num_proc=data_args.preprocessing_num_workers,
+            # )
             train_dataset = train_dataset.map(
                 function=tokenize_captions,
                 batched=True,
@@ -524,9 +526,10 @@ def main():
                 load_from_cache_file=not data_args.overwrite_cache,
                 desc="Running tokenizer on train dataset",
             )
+            train_dataset.set_format("torch")
 
         # Transform images on the fly as doing it on the whole dataset takes too much time.
-        train_dataset.set_transform(transform_images)
+        # train_dataset.set_transform(transform_images)
 
     if training_args.do_eval:
         if "validation" not in dataset:
@@ -536,11 +539,11 @@ def main():
             max_eval_samples = min(len(eval_dataset), data_args.max_eval_samples)
             eval_dataset = eval_dataset.select(range(max_eval_samples))
         with training_args.main_process_first():
-            eval_dataset = eval_dataset.filter(
-                filter_corrupt_images,
-                batched=True,
-                num_proc=data_args.preprocessing_num_workers,
-            )
+            # eval_dataset = eval_dataset.filter(
+            #     filter_corrupt_images,
+            #     batched=True,
+            #     num_proc=data_args.preprocessing_num_workers,
+            # )
             eval_dataset = eval_dataset.map(
                 function=tokenize_captions,
                 batched=True,
@@ -549,9 +552,10 @@ def main():
                 load_from_cache_file=not data_args.overwrite_cache,
                 desc="Running tokenizer on validation dataset",
             )
+            eval_dataset.set_format("torch")
 
         # Transform images on the fly as doing it on the whole dataset takes too much time.
-        eval_dataset.set_transform(transform_images)
+        # eval_dataset.set_transform(transform_images)
 
     if training_args.do_predict:
         if "test" not in dataset:
@@ -572,9 +576,20 @@ def main():
             load_from_cache_file=not data_args.overwrite_cache,
             desc="Running tokenizer on test dataset",
         )
+        test_dataset.set_format("torch")
 
         # Transform images on the fly as doing it on the whole dataset takes too much time.
-        test_dataset.set_transform(transform_images)
+        # test_dataset.set_transform(transform_images)
+
+    def collate_fn(examples):
+        pixel_values = torch.stack([example["pixel_values"] for example in examples])
+        text_pad = tokenizer.pad([{"input_ids": x["input_ids"]} for x in examples])
+        return {
+            "pixel_values": pixel_values,
+            "input_ids": text_pad["input_ids"],
+            "attention_mask": text_pad["attention_mask"],
+            "return_loss": True,
+        }
 
     # 8. Initalize our trainer
     trainer = Trainer(

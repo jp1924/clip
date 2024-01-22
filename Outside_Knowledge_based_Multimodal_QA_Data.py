@@ -38,7 +38,8 @@ _HOMEPAGE = "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100
 _LICENSE = ""
 
 
-_URL = "https://raw.githubusercontent.com/e9t/nsmc/master/"
+BASE_URL = "https://api.aihub.or.kr"
+DOWNLOAD_URL = f"{BASE_URL}/down/71357.do"
 
 
 # TODO: Name of the dataset usually match the script name with CamelCase instead of snake_case
@@ -102,14 +103,9 @@ class Outside_Knowledge_based_Multimodal_QA_Data(datasets.GeneratorBasedBuilder)
             citation=_CITATION,
         )
 
-    def _split_generators(self, dl_manager):
-        cache_dir = dl_manager.download_config.cache_dir
+    def aihub_downloader(self, recv_path: str):
         aihub_id = os.getenv("AIHUB_ID")
         aihub_pass = os.getenv("AIHUB_PASS")
-
-        BASE_URL = "https://api.aihub.or.kr"
-        DOWNLOAD_URL = f"{BASE_URL}/down/71357.do"
-
         response = requests.get(
             DOWNLOAD_URL,
             headers={"id": aihub_id, "pass": aihub_pass},
@@ -120,21 +116,17 @@ class Outside_Knowledge_based_Multimodal_QA_Data(datasets.GeneratorBasedBuilder)
         if response.status_code != 200:
             raise BaseException(f"Download failed with HTTP status code: {response.status_code}")
 
-        recv_file = "Outside_Knowledge_based_Multimodal_QA_Data.tar"
-        download_path = os.path.join(cache_dir, recv_file)
+        with open(recv_path, "wb") as file:
+            # chunk_size는 byte수
+            for chunk in tqdm(response.iter_content(chunk_size=128)):
+                file.write(chunk)
 
-        if not os.path.exists(download_path):
-            with open(download_path, "wb") as file:
-                # chunk_size는 byte수
-                for chunk in tqdm(response.iter_content(chunk_size=128)):
-                    file.write(chunk)
+    def unzip_data(self, tar_file: Path, unzip_dir: Path) -> list:
+        with TarFile(tar_file, "r") as mytar:
+            mytar.extractall(unzip_dir)
+            os.remove(tar_file)
 
-        dw_path = os.path.join(cache_dir, "Outside_Knowledge_based_Multimodal_QA_Data")
-        if not os.path.exists(dw_path):
-            with TarFile(download_path, "r") as mytar:
-                mytar.extractall(dw_path)
-
-        part_glob = Path(dw_path).rglob("*.zip.part*")
+        part_glob = Path(unzip_dir).rglob("*.zip.part*")
 
         part_dict = dict()
         for part_path in part_glob:
@@ -151,19 +143,33 @@ class Outside_Knowledge_based_Multimodal_QA_Data(datasets.GeneratorBasedBuilder)
                     byte_f.write(part_path.read_bytes())
                     os.remove(part_path)
 
-        zip_file_glob = list(Path(dw_path).rglob("*.zip*"))
+        return list(unzip_dir.rglob("*.zip*"))
+
+    def _split_generators(self, dl_manager):
+        data_name = "Outside_Knowledge_based_Multimodal_QA_Data"
+        cache_dir = Path(dl_manager.download_config.cache_dir)
+        unzip_dir = cache_dir.joinpath(data_name)
+
+        if not unzip_dir.exists():
+            tar_file = cache_dir.joinpath(f"{data_name}.tar")
+            self.aihub_downloader(tar_file)
+            zip_file_path = self.unzip_data(tar_file, unzip_dir)
+
+        train_split = [x for x in zip_file_path if "Training" in str(x)]
+        valid_split = [x for x in zip_file_path if "Validation" in str(x)]
+
         return [
             datasets.SplitGenerator(
                 name=datasets.Split.TRAIN,
                 gen_kwargs={
-                    "filepath": [x for x in zip_file_glob if "Training" in str(x)],
+                    "filepath": train_split,
                     "split": "train",
                 },
             ),
             datasets.SplitGenerator(
                 name=datasets.Split.VALIDATION,
                 gen_kwargs={
-                    "filepath": [x for x in zip_file_glob if "Validation" in str(x)],
+                    "filepath": valid_split,
                     "split": "valid",
                 },
             ),

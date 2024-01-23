@@ -25,6 +25,7 @@ from pathlib import Path
 import datasets
 import json
 from datasets import Image, Sequence, Value, Features
+from pySmartDL import SmartDL
 
 
 _CITATION = """"""
@@ -33,13 +34,12 @@ _DESCRIPTION = """\
 인간이 가진 상식적인 지식이나 배경지식을 바탕으로, 이미지에 관련한 질문에 대해 이미지 속에서 답을 찾아야 하는 태스크
 """
 
-_HOMEPAGE = "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&aihubDataSe=realm&dataSetSn=71357"
 
 _LICENSE = ""
 
-
-BASE_URL = "https://api.aihub.or.kr"
-DOWNLOAD_URL = f"{BASE_URL}/down/71357.do"
+DATASET_KEY = "71357"
+BASE_DOWNLOAD_URL = f"https://api.aihub.or.kr/down/{DATASET_KEY}.do"
+_HOMEPAGE = f"https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&aihubDataSe=realm&dataSetSn={DATASET_KEY}"
 
 
 # TODO: Name of the dataset usually match the script name with CamelCase instead of snake_case
@@ -106,20 +106,20 @@ class Outside_Knowledge_based_Multimodal_QA_Data(datasets.GeneratorBasedBuilder)
     def aihub_downloader(self, recv_path: str):
         aihub_id = os.getenv("AIHUB_ID")
         aihub_pass = os.getenv("AIHUB_PASS")
-        response = requests.get(
-            DOWNLOAD_URL,
-            headers={"id": aihub_id, "pass": aihub_pass},
-            params={"fileSn": "all"},
-            stream=True,
+
+        header = {
+            "id": aihub_id,
+            "pass": aihub_pass,
+        }
+        param = "fileSn=all"
+
+        obj = SmartDL(
+            f"{BASE_DOWNLOAD_URL}?{param}",
+            progress_bar=True,
+            request_args={"headers": header},
+            dest="/root/Outside_Knowledge_based_Multimodal_QA_Data.tar",
         )
-
-        if response.status_code != 200:
-            raise BaseException(f"Download failed with HTTP status code: {response.status_code}")
-
-        with open(recv_path, "wb") as file:
-            # chunk_size는 byte수
-            for chunk in tqdm(response.iter_content(chunk_size=128)):
-                file.write(chunk)
+        obj.start(blocking=True)
 
     def unzip_data(self, tar_file: Path, unzip_dir: Path) -> list:
         with TarFile(tar_file, "r") as mytar:

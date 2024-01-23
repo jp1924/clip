@@ -103,7 +103,7 @@ class Outside_Knowledge_based_Multimodal_QA_Data(datasets.GeneratorBasedBuilder)
             citation=_CITATION,
         )
 
-    def aihub_downloader(self, recv_path: str):
+    def aihub_downloader(self, recv_path: Path):
         aihub_id = os.getenv("AIHUB_ID")
         aihub_pass = os.getenv("AIHUB_PASS")
 
@@ -117,7 +117,7 @@ class Outside_Knowledge_based_Multimodal_QA_Data(datasets.GeneratorBasedBuilder)
             f"{BASE_DOWNLOAD_URL}?{param}",
             progress_bar=True,
             request_args={"headers": header},
-            dest="/root/Outside_Knowledge_based_Multimodal_QA_Data.tar",
+            dest=str(recv_path),
         )
         obj.start(blocking=True)
 

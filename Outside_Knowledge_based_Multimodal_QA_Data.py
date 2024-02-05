@@ -15,30 +15,23 @@
 """Naver movie review corpus for binary sentiment classification"""
 
 
-import csv
+import json
 import os
-import requests
-from tqdm import tqdm
+from pathlib import Path
 from tarfile import TarFile
 from zipfile import ZipFile
-from pathlib import Path
+
 import datasets
-import json
-from datasets import Image, Sequence, Value, Features
-from pySmartDL import SmartDL
-
-
-_CITATION = """"""
+import requests
+from datasets import Features, Image, Sequence, Value
+from tqdm import tqdm
 
 _DESCRIPTION = """\
 인간이 가진 상식적인 지식이나 배경지식을 바탕으로, 이미지에 관련한 질문에 대해 이미지 속에서 답을 찾아야 하는 태스크
 """
 
-
-_LICENSE = ""
-
 DATASET_KEY = "71357"
-BASE_DOWNLOAD_URL = f"https://api.aihub.or.kr/down/{DATASET_KEY}.do"
+DOWNLOAD_URL = f"https://api.aihub.or.kr/down/{DATASET_KEY}.do"
 _HOMEPAGE = f"https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&aihubDataSe=realm&dataSetSn={DATASET_KEY}"
 
 
@@ -99,27 +92,37 @@ class Outside_Knowledge_based_Multimodal_QA_Data(datasets.GeneratorBasedBuilder)
             features=features,
             supervised_keys=None,
             homepage=_HOMEPAGE,
-            license=_LICENSE,
-            citation=_CITATION,
+            license=None,
+            citation=None,
         )
 
     def aihub_downloader(self, recv_path: Path):
-        aihub_id = os.getenv("AIHUB_ID")
-        aihub_pass = os.getenv("AIHUB_PASS")
+        aihub_id = os.getenv("AIHUB_ID", None)
+        aihub_pass = os.getenv("AIHUB_PASS", None)
 
-        header = {
-            "id": aihub_id,
-            "pass": aihub_pass,
-        }
-        param = "fileSn=all"
+        if not aihub_id:
+            raise ValueError(
+                """AIHUB_ID가 지정되지 않았습니다. `os.environ["AIHUB_ID"]="your_id"`로 ID를 지정해 주세요"""
+            )
+        if not aihub_pass:
+            raise ValueError(
+                """AIHUB_PASS가 지정되지 않았습니다. `os.environ["AIHUB_PASS"]="your_pass"`로 ID를 지정해 주세요"""
+            )
 
-        obj = SmartDL(
-            f"{BASE_DOWNLOAD_URL}?{param}",
-            progress_bar=True,
-            request_args={"headers": header},
-            dest=str(recv_path),
+        response = requests.get(
+            DOWNLOAD_URL,
+            headers={"id": aihub_id, "pass": aihub_pass},
+            params={"fileSn": "all"},
+            stream=True,
         )
-        obj.start(blocking=True)
+
+        if response.status_code != 200:
+            raise BaseException(f"Download failed with HTTP status code: {response.status_code}")
+
+        with open(recv_path, "wb") as file:
+            # chunk_size는 byte수
+            for chunk in tqdm(response.iter_content(chunk_size=1024)):
+                file.write(chunk)
 
     def unzip_data(self, tar_file: Path, unzip_dir: Path) -> list:
         with TarFile(tar_file, "r") as mytar:
@@ -153,6 +156,7 @@ class Outside_Knowledge_based_Multimodal_QA_Data(datasets.GeneratorBasedBuilder)
         if not unzip_dir.exists():
             tar_file = cache_dir.joinpath(f"{data_name}.tar")
             self.aihub_downloader(tar_file)
+            # 압축이 덜 출렸을 때를 고려해야 함.
             zip_file_path = self.unzip_data(tar_file, unzip_dir)
 
         train_split = [x for x in zip_file_path if "Training" in str(x)]

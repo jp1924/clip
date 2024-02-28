@@ -78,15 +78,15 @@ class Outside_Knowledge_based_Multimodal_QA_Data(datasets.GeneratorBasedBuilder)
                 "questions": [
                     {
                         "question_id": Value("string"),
-                        "visual_concept": Sequence(feature=[Value("string")]),
+                        "visual_concept": [Value("string")],
                         "question_ko": Value("string"),
                         "question_en": Value("string"),
                         "answer_ko": Value("string"),
                         "answer_en": Value("string"),
-                        "question_type": Sequence(feature=[Value("string")]),
+                        "question_type": [Value("string")],
                         "ans_source": Value("string"),
-                        "kb_source": Sequence(feature=[Value("string")]),
-                        "fact": Sequence(feature=[Value("string")]),
+                        "kb_source": [Value("string")],
+                        "fact": [Value("string")],
                     }
                 ],
                 "IMAGE": Image(),

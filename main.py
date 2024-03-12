@@ -56,6 +56,7 @@ from setproctitle import setproctitle
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class ModelArguments:
     """
@@ -459,7 +460,10 @@ def main():
             do_resize=True,
             do_center_crop=True,
             do_normalize=True,
-            size={"shortest_edge": config.vision_config.image_size},
+            size={
+                "height": config.vision_config.image_size,
+                "width": config.vision_config.image_size,
+            },
             image_mean=image_processor.image_mean,
             image_std=image_processor.image_mean,
             # return_tensors="pt",
@@ -469,6 +473,18 @@ def main():
 
         return examples
 
+    def filter_corrupt_images(examples):
+        """remove problematic images"""
+        valid_images = []
+        for image_file in examples[image_column]:
+            if ("RGB" != image_file._mode) or (
+                "JPEG" not in image_file.format and "PNG" not in image_file.format
+            ):
+                valid_images.append(False)
+                continue
+
+            valid_images.append(True)
+        return valid_images
 
     if training_args.do_train:
         if "train" not in dataset:
@@ -479,6 +495,11 @@ def main():
             train_dataset = train_dataset.select(range(max_train_samples))
 
         with training_args.main_process_first():
+            train_dataset = train_dataset.filter(
+                filter_corrupt_images,
+                batched=True,
+                num_proc=data_args.preprocessing_num_workers,
+            )
             train_dataset = train_dataset.map(
                 function=tokenize_captions,
                 batched=True,
@@ -501,6 +522,11 @@ def main():
             eval_dataset = eval_dataset.select(range(max_eval_samples))
 
         with training_args.main_process_first():
+            eval_dataset = eval_dataset.filter(
+                filter_corrupt_images,
+                batched=True,
+                num_proc=data_args.preprocessing_num_workers,
+            )
             eval_dataset = eval_dataset.map(
                 function=tokenize_captions,
                 batched=True,
@@ -523,6 +549,11 @@ def main():
             test_dataset = test_dataset.select(range(max_eval_samples))
 
         with training_args.main_process_first():
+            test_dataset = test_dataset.filter(
+                filter_corrupt_images,
+                batched=True,
+                num_proc=data_args.preprocessing_num_workers,
+            )
             test_dataset = test_dataset.map(
                 function=tokenize_captions,
                 batched=True,
@@ -575,7 +606,6 @@ def main():
         metrics = trainer.evaluate()
         trainer.log_metrics("eval", metrics)
         trainer.save_metrics("eval", metrics)
-
 
 
 if __name__ == "__main__":

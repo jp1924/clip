@@ -1,0 +1,20 @@
+version: "1.0.0"
+services:
+  clip_train_container:
+    container_name: clip_train_container
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    tty: true
+    shm_size: 126G
+    environment:
+      - LC_ALL=C.UTF-8
+      - LANG=C.UTF-8
+      - TZ=Asia/Seoul
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count : all
+              capabilities: [gpu]

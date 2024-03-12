@@ -1,0 +1,1 @@
+이건 huggingface의 VisionTextDualEncoderModel모델이 있다는 걸 알기 전에 만든 모델 파일임. 현재는 사용 안함.

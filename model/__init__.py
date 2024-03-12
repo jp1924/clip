@@ -1,2 +1,2 @@
-from .configuration_custom_clip import CustomCLIPConfig
-from .modeling_custom_clip import CustomCLIPModel
+from .configuration_clip_custom import CLIPCustomConfig
+from .modeling_clip_custom import CLIPCustomModel

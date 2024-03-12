@@ -1,11 +1,11 @@
-from transformers.models.clip import CLIPPreTrainedModel, CLIPConfig, CLIPModel
-from transformers import PreTrainedModel, AutoModel
-from .configuration_custom_clip import CustomCLIPConfig
+from transformers.models.clip import CLIPPreTrainedModel, CLIPModel
+from transformers import AutoModel
+from .configuration_clip_custom import CustomCLIPConfig
 import torch.nn as nn
 import torch
 
 
-class CustomCLIPModel(CLIPModel):
+class CLIPCustomModel(CLIPModel):
     config_class = CustomCLIPConfig
 
     def __init__(self, config: CustomCLIPConfig) -> None:

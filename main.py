@@ -47,8 +47,6 @@ from transformers import (
     Trainer,
     TrainingArguments,
     set_seed,
-    CLIPImageProcessor,
-    CLIPTokenizer,
 )
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import send_example_telemetry
@@ -57,14 +55,6 @@ from setproctitle import setproctitle
 
 
 logger = logging.getLogger(__name__)
-
-# Will error if the minimal version of Transformers is not installed. Remove at your own risks.
-
-require_version(
-    "datasets>=1.8.0",
-    "To fix: pip install -r examples/pytorch/contrastive-image-text/requirements.txt",
-)
-
 
 @dataclass
 class ModelArguments:
@@ -457,10 +447,6 @@ def main():
 
     # 7. Preprocessing the datasets.
     # Initialize torchvision transforms and jit it for faster processing.
-    image_transformations = Transform(
-        config.vision_config.image_size, image_processor.image_mean, image_processor.image_std
-    )
-    # image_transformations = torch.jit.script(image_transformations)
 
     # Preprocessing the datasets.
     # We need to tokenize input captions and transform the images.
@@ -483,26 +469,6 @@ def main():
 
         return examples
 
-    def transform_images(examples):
-        # images = [
-        #     read_image(image_file, mode=ImageReadMode.RGB) for image_file in examples[image_column]
-        # ]
-        images = [image_file for image_file in examples[image_column]]
-        examples["pixel_values"] = [
-            image_transformations(image_processor(image["pixel_values"])) for image in images
-        ]
-        return examples
-
-    def filter_corrupt_images(examples):
-        """remove problematic images"""
-        valid_images = []
-        for image_file in examples[image_column]:
-            try:
-                Image.open(image_file)
-                valid_images.append(True)
-            except Exception:
-                valid_images.append(False)
-        return valid_images
 
     if training_args.do_train:
         if "train" not in dataset:
@@ -513,11 +479,6 @@ def main():
             train_dataset = train_dataset.select(range(max_train_samples))
 
         with training_args.main_process_first():
-            # train_dataset = train_dataset.filter(
-            #     filter_corrupt_images,
-            #     batched=True,
-            #     num_proc=data_args.preprocessing_num_workers,
-            # )
             train_dataset = train_dataset.map(
                 function=tokenize_captions,
                 batched=True,
@@ -533,17 +494,13 @@ def main():
 
     if training_args.do_eval:
         if "validation" not in dataset:
-            raise ValueError("--do_eval requires a train validation")
+            raise ValueError("--do_eval requires a validation")
         eval_dataset = dataset["validation"]
         if data_args.max_eval_samples is not None:
             max_eval_samples = min(len(eval_dataset), data_args.max_eval_samples)
             eval_dataset = eval_dataset.select(range(max_eval_samples))
+
         with training_args.main_process_first():
-            # eval_dataset = eval_dataset.filter(
-            #     filter_corrupt_images,
-            #     batched=True,
-            #     num_proc=data_args.preprocessing_num_workers,
-            # )
             eval_dataset = eval_dataset.map(
                 function=tokenize_captions,
                 batched=True,
@@ -565,18 +522,16 @@ def main():
             max_eval_samples = min(len(test_dataset), data_args.max_eval_samples)
             test_dataset = test_dataset.select(range(max_eval_samples))
 
-        test_dataset = test_dataset.filter(
-            filter_corrupt_images, batched=True, num_proc=data_args.preprocessing_num_workers
-        )
-        test_dataset = test_dataset.map(
-            function=tokenize_captions,
-            batched=True,
-            num_proc=data_args.preprocessing_num_workers,
-            remove_columns=[col for col in column_names if col != image_column],
-            load_from_cache_file=not data_args.overwrite_cache,
-            desc="Running tokenizer on test dataset",
-        )
-        test_dataset.set_format("torch")
+        with training_args.main_process_first():
+            test_dataset = test_dataset.map(
+                function=tokenize_captions,
+                batched=True,
+                num_proc=data_args.preprocessing_num_workers,
+                remove_columns=[col for col in column_names if col != image_column],
+                load_from_cache_file=not data_args.overwrite_cache,
+                desc="Running tokenizer on test dataset",
+            )
+            test_dataset.set_format("torch")
 
         # Transform images on the fly as doing it on the whole dataset takes too much time.
         # test_dataset.set_transform(transform_images)
@@ -621,24 +576,6 @@ def main():
         trainer.log_metrics("eval", metrics)
         trainer.save_metrics("eval", metrics)
 
-    # 11. Write Training Stats and push to hub.
-    finetuned_from = model_args.model_name_or_path
-    # If from a local directory, don't set `finetuned_from` as this is required to be a valid repo. id on the Hub.
-    if os.path.isdir(finetuned_from):
-        finetuned_from = None
-    kwargs = {"finetuned_from": finetuned_from, "tasks": "contrastive-image-text-modeling"}
-    if data_args.dataset_name is not None:
-        kwargs["dataset_tags"] = data_args.dataset_name
-        if data_args.dataset_config_name is not None:
-            kwargs["dataset_args"] = data_args.dataset_config_name
-            kwargs["dataset"] = f"{data_args.dataset_name} {data_args.dataset_config_name}"
-        else:
-            kwargs["dataset"] = data_args.dataset_name
-
-    if training_args.push_to_hub:
-        trainer.push_to_hub(**kwargs)
-    else:
-        trainer.create_model_card(**kwargs)
 
 
 if __name__ == "__main__":

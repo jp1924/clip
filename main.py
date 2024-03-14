@@ -42,9 +42,11 @@ import transformers
 from transformers import (
     AutoImageProcessor,
     AutoModel,
+    AutoConfig,
     AutoTokenizer,
     HfArgumentParser,
     Trainer,
+    CLIPFeatureExtractor,
     TrainingArguments,
     set_seed,
 )
@@ -52,6 +54,8 @@ from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import send_example_telemetry
 from transformers.utils.versions import require_version
 from setproctitle import setproctitle
+
+from data.contrastive_trainer import ContrastiveTrainer
 
 
 logger = logging.getLogger(__name__)
@@ -398,9 +402,14 @@ def main():
         token=model_args.token,
         trust_remote_code=model_args.trust_remote_code,
     )
-    config = model.config
 
-    model = torch.compile(model)
+    config = AutoConfig.from_pretrained(
+        model_args.model_name_or_path,
+        cache_dir=model_args.cache_dir,
+        revision=model_args.model_revision,
+        token=model_args.token,
+        trust_remote_code=model_args.trust_remote_code,
+    )
 
     def _freeze_params(module):
         for param in module.parameters():
@@ -456,18 +465,21 @@ def main():
     def tokenize_captions(examples):
         captions = list(examples[caption_column])
         image = list(examples[image_column])
+
         text_inputs = tokenizer(captions, truncation=True, return_attention_mask=False)
         image_inputs = image_processor(
             image,
-            do_resize=True,
-            do_center_crop=True,
-            do_normalize=True,
+            do_resize=image_processor.do_resize,
             size={
                 "height": config.vision_config.image_size,
                 "width": config.vision_config.image_size,
             },
+            resample=image_processor.resample,
+            do_rescale=image_processor.do_rescale,
+            rescale_factor=image_processor.rescale_factor,
+            do_normalize=image_processor.do_normalize,
             image_mean=image_processor.image_mean,
-            image_std=image_processor.image_mean,
+            image_std=image_processor.image_std,
             # return_tensors="pt",
         )
         examples["input_ids"] = text_inputs.input_ids
@@ -502,6 +514,7 @@ def main():
                 batched=True,
                 num_proc=data_args.preprocessing_num_workers,
             )
+            MAINOBJECT = train_dataset["MAINOBJECT"]
             train_dataset = train_dataset.map(
                 function=tokenize_captions,
                 batched=True,
@@ -510,6 +523,7 @@ def main():
                 load_from_cache_file=not data_args.overwrite_cache,
                 desc="Running tokenizer on train dataset",
             )
+            train_dataset = train_dataset.add_column("MAINOBJECT", MAINOBJECT)
             train_dataset.set_format("torch")
 
         # Transform images on the fly as doing it on the whole dataset takes too much time.
@@ -529,6 +543,7 @@ def main():
                 batched=True,
                 num_proc=data_args.preprocessing_num_workers,
             )
+            MAINOBJECT = eval_dataset["MAINOBJECT"]
             eval_dataset = eval_dataset.map(
                 function=tokenize_captions,
                 batched=True,
@@ -537,6 +552,7 @@ def main():
                 load_from_cache_file=not data_args.overwrite_cache,
                 desc="Running tokenizer on validation dataset",
             )
+            eval_dataset = eval_dataset.add_column("MAINOBJECT", MAINOBJECT)
             eval_dataset.set_format("torch")
 
         # Transform images on the fly as doing it on the whole dataset takes too much time.
@@ -556,6 +572,7 @@ def main():
                 batched=True,
                 num_proc=data_args.preprocessing_num_workers,
             )
+            MAINOBJECT = test_dataset["MAINOBJECT"]
             test_dataset = test_dataset.map(
                 function=tokenize_captions,
                 batched=True,
@@ -564,6 +581,7 @@ def main():
                 load_from_cache_file=not data_args.overwrite_cache,
                 desc="Running tokenizer on test dataset",
             )
+            test_dataset = test_dataset.add_column("MAINOBJECT", MAINOBJECT)
             test_dataset.set_format("torch")
 
         # Transform images on the fly as doing it on the whole dataset takes too much time.
@@ -579,7 +597,9 @@ def main():
             "return_loss": True,
         }
 
+    model = torch.compile(model)
     # 8. Initalize our trainer
+    # trainer = ContrastiveTrainer(
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -590,12 +610,7 @@ def main():
 
     # 9. Training
     if training_args.do_train:
-        checkpoint = None
-        if training_args.resume_from_checkpoint is not None:
-            checkpoint = training_args.resume_from_checkpoint
-        elif last_checkpoint is not None:
-            checkpoint = last_checkpoint
-        train_result = trainer.train(resume_from_checkpoint=checkpoint)
+        train_result = trainer.train()
         trainer.save_model()
         tokenizer.save_pretrained(training_args.output_dir)
         image_processor.save_pretrained(training_args.output_dir)

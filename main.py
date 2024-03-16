@@ -31,32 +31,28 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 import torch
+import transformers
+from data.contrastive_trainer import ContrastiveTrainer
 from datasets import load_dataset
 from PIL import Image, JpegImagePlugin
+from setproctitle import setproctitle
 from torchvision.io import ImageReadMode, read_image
 from torchvision.transforms import CenterCrop, ConvertImageDtype, Normalize, Resize
 from torchvision.transforms.functional import InterpolationMode
-
-
-import transformers
 from transformers import (
+    AutoConfig,
     AutoImageProcessor,
     AutoModel,
-    AutoConfig,
     AutoTokenizer,
+    CLIPFeatureExtractor,
     HfArgumentParser,
     Trainer,
-    CLIPFeatureExtractor,
     TrainingArguments,
     set_seed,
 )
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import send_example_telemetry
 from transformers.utils.versions import require_version
-from setproctitle import setproctitle
-
-from data.contrastive_trainer import ContrastiveTrainer
-
 
 logger = logging.getLogger(__name__)
 
@@ -68,9 +64,7 @@ class ModelArguments:
     """
 
     model_name_or_path: str = field(
-        metadata={
-            "help": "Path to pretrained model or model identifier from huggingface.co/models"
-        },
+        metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"},
     )
     config_name: Optional[str] = field(
         default=None,
@@ -80,24 +74,18 @@ class ModelArguments:
         default=None,
         metadata={"help": "Pretrained tokenizer name or path if not the same as model_name"},
     )
-    image_processor_name: str = field(
-        default=None, metadata={"help": "Name or path of preprocessor config."}
-    )
+    image_processor_name: str = field(default=None, metadata={"help": "Name or path of preprocessor config."})
     cache_dir: Optional[str] = field(
         default=None,
         metadata={"help": "Where do you want to store the pretrained models downloaded from s3"},
     )
     model_revision: str = field(
         default="main",
-        metadata={
-            "help": "The specific model version to use (can be a branch name, tag name or commit id)."
-        },
+        metadata={"help": "The specific model version to use (can be a branch name, tag name or commit id)."},
     )
     use_fast_tokenizer: bool = field(
         default=True,
-        metadata={
-            "help": "Whether to use one of the fast tokenizer (backed by the tokenizers library) or not."
-        },
+        metadata={"help": "Whether to use one of the fast tokenizer (backed by the tokenizers library) or not."},
     )
     token: str = field(
         default=None,
@@ -144,18 +132,12 @@ class DataTrainingArguments:
     )
     dataset_config_name: Optional[str] = field(
         default=None,
-        metadata={
-            "help": "The configuration name of the dataset to use (via the datasets library)."
-        },
+        metadata={"help": "The configuration name of the dataset to use (via the datasets library)."},
     )
-    data_dir: Optional[str] = field(
-        default=None, metadata={"help": "The data directory containing input files."}
-    )
+    data_dir: Optional[str] = field(default=None, metadata={"help": "The data directory containing input files."})
     image_column: Optional[str] = field(
         default="image_path",
-        metadata={
-            "help": "The name of the column in the datasets containing the full image file paths."
-        },
+        metadata={"help": "The name of the column in the datasets containing the full image file paths."},
     )
     caption_column: Optional[str] = field(
         default="caption",
@@ -199,9 +181,7 @@ class DataTrainingArguments:
             )
         },
     )
-    overwrite_cache: bool = field(
-        default=False, metadata={"help": "Overwrite the cached training and evaluation sets"}
-    )
+    overwrite_cache: bool = field(default=False, metadata={"help": "Overwrite the cached training and evaluation sets"})
     preprocessing_num_workers: Optional[int] = field(
         default=None,
         metadata={"help": "The number of processes to use for the preprocessing."},
@@ -259,9 +239,7 @@ def main():
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         # If we pass only one argument to the script and it's the path to a json file,
         # let's parse it to get our arguments.
-        model_args, data_args, training_args = parser.parse_json_file(
-            json_file=os.path.abspath(sys.argv[1])
-        )
+        model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
@@ -271,9 +249,7 @@ def main():
             FutureWarning,
         )
         if model_args.token is not None:
-            raise ValueError(
-                "`token` and `use_auth_token` are both specified. Please set only the argument `token`."
-            )
+            raise ValueError("`token` and `use_auth_token` are both specified. Please set only the argument `token`.")
         model_args.token = model_args.use_auth_token
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
@@ -307,11 +283,7 @@ def main():
 
     # 3. Detecting last checkpoint and eventualy continue from last checkpoint
     last_checkpoint = None
-    if (
-        os.path.isdir(training_args.output_dir)
-        and training_args.do_train
-        and not training_args.overwrite_output_dir
-    ):
+    if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
         last_checkpoint = get_last_checkpoint(training_args.output_dir)
         if last_checkpoint is None and len(os.listdir(training_args.output_dir)) > 0:
             raise ValueError(
@@ -433,9 +405,7 @@ def main():
     elif training_args.do_predict:
         column_names = dataset["test"].column_names
     else:
-        logger.info(
-            "There is nothing to do. Please pass `do_train`, `do_eval` and/or `do_predict`."
-        )
+        logger.info("There is nothing to do. Please pass `do_train`, `do_eval` and/or `do_predict`.")
         return
 
     # 6. Get the column names for input/target.
@@ -491,9 +461,7 @@ def main():
         """remove problematic images"""
         valid_images = []
         for image_file in examples[image_column]:
-            if ("RGB" != image_file._mode) or (
-                "JPEG" not in image_file.format and "PNG" not in image_file.format
-            ):
+            if ("RGB" != image_file._mode) or ("JPEG" not in image_file.format and "PNG" not in image_file.format):
                 valid_images.append(False)
                 continue
 

@@ -1,8 +1,9 @@
-from typing import Optional, Any
+from typing import Any, Optional
 
 from datasets import Dataset
-from torch.utils.data import Dataset, Sampler
+from torch.utils.data import Sampler
 from transformers import Trainer
+
 from .weighted_sampler import WeightedSampler
 
 

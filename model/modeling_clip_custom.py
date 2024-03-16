@@ -1,8 +1,9 @@
-from transformers.models.clip import CLIPPreTrainedModel, CLIPModel
-from transformers import AutoModel
-from .configuration_clip_custom import CustomCLIPConfig
-import torch.nn as nn
 import torch
+import torch.nn as nn
+from transformers import AutoModel
+from transformers.models.clip import CLIPModel, CLIPPreTrainedModel
+
+from .configuration_clip_custom import CustomCLIPConfig
 
 
 class CLIPCustomModel(CLIPModel):

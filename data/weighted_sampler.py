@@ -1,10 +1,9 @@
-from typing import Iterator
-from torch.utils.data import Dataset
-from torch.utils.data import Sampler
 from collections import Counter
-import torch
+from typing import Iterator
 
+import torch
 import torch.distributed as dist
+from torch.utils.data import Dataset, Sampler
 
 
 class WeightedSampler(Sampler):
@@ -19,9 +18,7 @@ class WeightedSampler(Sampler):
         self.dataset = dataset
 
         self.main_obj = self.dataset["MAINOBJECT"]
-        self.obj_idx_table = {
-            obj_name: idx for idx, obj_name in enumerate(Counter(self.main_obj).keys())
-        }
+        self.obj_idx_table = {obj_name: idx for idx, obj_name in enumerate(Counter(self.main_obj).keys())}
 
         self.batch_size = batch_size
         self.epoch = 0
@@ -36,9 +33,7 @@ class WeightedSampler(Sampler):
         batch_ls = list()
         while len(idx_obj_ls):
             try:
-                current_sampling_size = (
-                    self.batch_size if self.batch_size < len(idx_obj_ls) else len(idx_obj_ls)
-                )
+                current_sampling_size = self.batch_size if self.batch_size < len(idx_obj_ls) else len(idx_obj_ls)
                 selected_idx = torch.multinomial(
                     input=idx_obj_ls,
                     num_samples=current_sampling_size,
@@ -55,8 +50,7 @@ class WeightedSampler(Sampler):
         torch_batch_ls = torch.tensor(batch_ls)
 
         rank_considered_batch_ls = [
-            torch_batch_ls[rank : len(batch_ls) : self.num_replicas].tolist()
-            for rank in range(self.num_replicas)
+            torch_batch_ls[rank : len(batch_ls) : self.num_replicas].tolist() for rank in range(self.num_replicas)
         ]
         min_batch_len = min([len(x) for x in rank_considered_batch_ls])
 

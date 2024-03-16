@@ -23,7 +23,7 @@ from zipfile import ZipFile
 
 import datasets
 import requests
-from datasets import Features, Image, Sequence, Value
+from datasets import Features, Image, Value
 from tqdm import tqdm
 
 _LICENSE = """
@@ -38,7 +38,9 @@ _DESCRIPTION = """\
 
 DATASET_KEY = "71357"
 DOWNLOAD_URL = f"https://api.aihub.or.kr/down/{DATASET_KEY}.do"
-_HOMEPAGE = f"https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&aihubDataSe=realm&dataSetSn={DATASET_KEY}"
+_HOMEPAGE = (
+    f"https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&aihubDataSe=realm&dataSetSn={DATASET_KEY}"
+)
 
 
 # TODO: Name of the dataset usually match the script name with CamelCase instead of snake_case

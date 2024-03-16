@@ -45,8 +45,6 @@ def main(packing_args: PackingArgument) -> None:
 
 
 if "__main__" in __name__:
-    packing_args, _ = HfArgumentParser([PackingArgument]).parse_args_into_dataclasses(
-        return_remaining_strings=True
-    )
+    packing_args, _ = HfArgumentParser([PackingArgument]).parse_args_into_dataclasses(return_remaining_strings=True)
 
     main(packing_args)

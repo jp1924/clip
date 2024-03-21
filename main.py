@@ -34,9 +34,7 @@ import torch
 import transformers
 from data.contrastive_trainer import ContrastiveTrainer
 from datasets import load_dataset
-from PIL import Image, JpegImagePlugin
 from setproctitle import setproctitle
-from torchvision.io import ImageReadMode, read_image
 from torchvision.transforms import CenterCrop, ConvertImageDtype, Normalize, Resize
 from torchvision.transforms.functional import InterpolationMode
 from transformers import (
@@ -44,15 +42,12 @@ from transformers import (
     AutoImageProcessor,
     AutoModel,
     AutoTokenizer,
-    CLIPFeatureExtractor,
     HfArgumentParser,
-    Trainer,
     TrainingArguments,
     set_seed,
 )
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import send_example_telemetry
-from transformers.utils.versions import require_version
 
 logger = logging.getLogger(__name__)
 
@@ -432,6 +427,9 @@ def main():
 
     # Preprocessing the datasets.
     # We need to tokenize input captions and transform the images.
+    # TODO: image_processor 옵션값 바꿔가며 실험해 보기
+    #       당시 contrastive loss 사용한 상태에서 clip 학습 시켰더니 eval loss가 이상하게 가는 문제가 있었음
+    #       의심되는건 koclip하고 dual clip을 동일한 환경에서 돌렸는데 혹시 그게 문제가 될 수 있지 않을까 하고 생각해 봄
     def tokenize_captions(examples):
         captions = list(examples[caption_column])
         image = list(examples[image_column])
@@ -440,17 +438,13 @@ def main():
         image_inputs = image_processor(
             image,
             do_resize=image_processor.do_resize,
-            size={
-                "height": config.vision_config.image_size,
-                "width": config.vision_config.image_size,
-            },
+            size=image_processor.size,
             resample=image_processor.resample,
             do_rescale=image_processor.do_rescale,
             rescale_factor=image_processor.rescale_factor,
             do_normalize=image_processor.do_normalize,
             image_mean=image_processor.image_mean,
             image_std=image_processor.image_std,
-            # return_tensors="pt",
         )
         examples["input_ids"] = text_inputs.input_ids
         examples["pixel_values"] = image_inputs.pixel_values
@@ -567,8 +561,8 @@ def main():
 
     model = torch.compile(model)
     # 8. Initalize our trainer
-    # trainer = ContrastiveTrainer(
-    trainer = Trainer(
+    # trainer = Trainer(
+    trainer = ContrastiveTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset if training_args.do_train else None,

@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Naver movie review corpus for binary sentiment classification"""
 
 
 import json
@@ -24,6 +23,7 @@ from zipfile import ZipFile
 import datasets
 import requests
 from datasets import Features, Image, Value
+from natsort import natsorted
 from tqdm import tqdm
 
 _LICENSE = """
@@ -44,7 +44,7 @@ _HOMEPAGE = (
 
 
 # TODO: Name of the dataset usually match the script name with CamelCase instead of snake_case
-class Outside_Knowledge_based_Multimodal_QA_Data(datasets.GeneratorBasedBuilder):
+class OutsideKnowledgebasedMultimodalQAData(datasets.GeneratorBasedBuilder):
     VERSION = datasets.Version("1.1.0")
 
     def _info(self):
@@ -150,7 +150,7 @@ class Outside_Knowledge_based_Multimodal_QA_Data(datasets.GeneratorBasedBuilder)
 
         for dst_path, part_path_ls in part_dict.items():
             with open(dst_path, "wb") as byte_f:
-                for part_path in sorted(part_path_ls):
+                for part_path in natsorted(part_path_ls):
                     byte_f.write(part_path.read_bytes())
                     os.remove(part_path)
 
@@ -166,6 +166,8 @@ class Outside_Knowledge_based_Multimodal_QA_Data(datasets.GeneratorBasedBuilder)
             self.aihub_downloader(tar_file)
             # 압축이 덜 출렸을 때를 고려해야 함.
             zip_file_path = self.unzip_data(tar_file, unzip_dir)
+        else:
+            zip_file_path = list(unzip_dir.rglob("*.zip"))
 
         train_split = [x for x in zip_file_path if "Training" in str(x)]
         valid_split = [x for x in zip_file_path if "Validation" in str(x)]

@@ -184,7 +184,7 @@ class VisualQuestionAnswering(datasets.GeneratorBasedBuilder):
                 data_ls.append(data)
 
         idx = 0
-        for _, df in pd.concat(data_ls):
+        for _, df in pd.concat(data_ls).iterrows():
             df = dict(df)
             df["image"] = source_dict[df["category"]].open(info_dict[df["image"]]).read()
 

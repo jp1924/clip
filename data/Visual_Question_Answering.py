@@ -183,10 +183,10 @@ class VisualQuestionAnswering(datasets.GeneratorBasedBuilder):
 
                 data_ls.append(data)
 
-        data = pd.concat(data_ls)
-
-        for idx, df in data.iterrows():
+        idx = 0
+        for _, df in pd.concat(data_ls):
             df = dict(df)
             df["image"] = source_dict[df["category"]].open(info_dict[df["image"]]).read()
 
             yield (idx, df)
+            idx += 1

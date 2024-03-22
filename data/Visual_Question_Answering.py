@@ -131,7 +131,7 @@ class VisualQuestionAnswering(datasets.GeneratorBasedBuilder):
                 name=datasets.Split.VALIDATION,
                 gen_kwargs={
                     "filepath": valid_split,
-                    "split": "validlidation",
+                    "split": "validation",
                 },
             ),
         ]

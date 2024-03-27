@@ -364,6 +364,28 @@ CLIP is trained on text paired with images on the internet. These image-text pai
 
 While we have emphasized throughout this work that specifying image classifiers through natural language is a flexible and general interface, it has its own limitations. Many complex tasks and visual concepts can be difficult to specify just through text. Actual training examples are undeniably useful but CLIP does not optimize for few-shot performance directly. In our work, we fall back to fitting linear classifiers on top of CLIP’s features. This results in a counter-intuitive drop in performance when transitioning from a zero-shot to a few-shot setting. As discussed in Section 4, this is notably different from human performance which shows a large increase from a zero to a one shot setting. Future work is needed to develop methods that combine CLIP’s strong zero-shot performance with efficient few-shot learning
 
+CLIP에는 여전히 많은 한계가 있습니다.
+이 중 몇 가지는 여러 섹션에서 분석의 일부로 논의되었지만, 여기서는 이를 요약하여 정리해 보았습니다.
+
+훈련 분할이 있는 데이터 세트에서 제로샷 CLIP의 성능은 평균적으로 ResNet-50 특징을 기반으로 하는 선형 분류기의 단순 지도 기준선과 경쟁합니다. 이러한 데이터 세트의 대부분에서 이 기준선의 성능은 현재 전반적인 최신 기술에 훨씬 못 미칩니다. CLIP의 작업 학습 및 전송 기능을 개선하기 위해서는 여전히 상당한 작업이 필요합니다. 지금까지 스케일링을 통해 꾸준히 성능을 개선하고 지속적인 개선의 길을 제시하고 있지만, 제로 샷 CLIP이 전반적인 최신 성능에 도달하려면 약 1000배의 컴퓨팅 증가가 필요할 것으로 예상됩니다. 이는 현재의 하드웨어로는 트레이닝이 불가능합니다. CLIP의 연산 및 데이터 효율성을 개선하기 위한 추가 연구가 필요합니다.
+
+3.1절의 분석에 따르면 CLIP의 제로 샷 성능은 여러 종류의 작업에서 여전히 상당히 취약한 것으로 나타났습니다.
+작업별 모델과 비교했을 때, 자동차 모델, 꽃의 종류, 항공기의 종류를 구분하는 것과 같은 여러 종류의 세분화된 분류에서 CLIP의 성능은 좋지 않습니다. CLIP은 또한 이미지의 개체 수 세기와 같은 보다 추상적이고 체계적인 작업에서도 어려움을 겪습니다. 마지막으로 사진에서 가장 가까운 자동차까지의 거리를 분류하는 것과 같이 CLIP의 사전 학습 데이터 세트에 포함되지 않은 새로운 작업의 경우 CLIP의 성능이 거의 무작위에 가까울 수 있습니다. CLIP의 제로 샷 성능이 우연에 가까운 수준인 작업은 여전히 많다고 확신합니다.
+
+3.3장에서 살펴본 것처럼 제로 샷 CLIP은 많은 자연 이미지 분포에 잘 일반화되지만, 실제로 분포에서 벗어난 데이터에 대해서는 여전히 일반화가 제대로 이루어지지 않는 것으로 나타났습니다.
+부록 E에 보고된 OCR 작업을 예로 들어 설명합니다. CLIP은 사전 학습 데이터 세트에서 흔히 볼 수 있는 디지털 렌더링된 텍스트에서 잘 작동하는 고품질의 의미론적 OCR 표현을 학습하며, 이는 렌더링된 SST2에서의 성능에서 알 수 있듯이 입증되었습니다. 그러나 CLIP은 MNIST의 손으로 쓴 숫자에 대해서만 88%의 정확도를 달성합니다. 원시 픽셀에 대한 로지스틱 회귀의 당황스러울 정도로 단순한 기준선은 제로 샷 CLIP보다 성능이 뛰어납니다. 시맨틱 검색과 거의 중복되는 가장 가까운 이웃 검색 모두 사전 학습 데이터 세트에서 MNIST 숫자와 유사한 이미지가 거의 없다는 것을 확인했습니다. 이는 CLIP이 딥러닝 모델의 취약한 일반화라는 근본적인 문제를 거의 해결하지 못한다는 것을 시사합니다. 대신 CLIP은 이 문제를 회피하려고 하며, 크고 다양한 데이터 세트를 학습함으로써 모든 데이터가 효과적으로 분산될 수 있기를 희망합니다. 이는 순진한 가정이며, MNIST의 사례에서 알 수 있듯이 위반하기 쉽습니다.
+
+CLIP은 다양한 작업과 데이터 세트에 대해 제로 샷 분류기를 유연하게 생성할 수 있지만, 여전히 주어진 제로 샷 분류기에서 해당 개념만 선택할 수 있도록 제한되어 있습니다.
+이는 이미지 캡션과 같이 새로운 결과물을 생성할 수 있는 매우 유연한 접근 방식과 비교할 때 상당한 제약입니다. 안타깝게도 섹션 2.3에서 설명한 것처럼, 우리가 시도한 이미지 캡션 기준선의 계산 효율성이 CLIP보다 훨씬 낮다는 것을 발견했습니다. CLIP의 효율성과 캡션 모델의 유연성을 결합하기 위해 대조 및 생성 목표를 공동으로 학습하는 것은 시도해 볼 만한 간단한 아이디어입니다. 또 다른 대안으로, 잠재 언어 학습(Andreas et al., 2017)에서 제안한 접근 방식과 유사하게 주어진 이미지에 대한 많은 자연어 설명에 대해 추론 시 검색을 수행할 수 있습니다. CLIP은 또한 딥 러닝의 열악한 데이터 효율성을 해결하지 못합니다. 대신 CLIP은 수억 개의 훈련 예시로 확장할 수 있는 감독 소스를 사용하여 이를 보완합니다. CLIP 모델을 훈련하는 동안 보이는 모든 이미지가 초당 한 장의 속도로 제공된다면, 32번의 훈련 기간 동안 보이는 128억 개의 이미지를 반복하는 데 405년이 걸릴 것입니다. 표준 지도 학습보다 데이터 효율성을 향상시킬 수 있는 것으로 입증된 자가 감독(Henaff, 2020; Chen et al., 2020c) 및 자가 훈련(Lee; Xie et al., 2020) 방법과 CLIP을 결합하는 것은 유망한 방향입니다.
+
+저희의 방법론에는 몇 가지 중요한 한계가 있습니다.
+제로 샷 전송에 중점을 두었음에도 불구하고, CLIP의 개발을 안내하기 위해 전체 검증 세트에 대한 성능을 반복적으로 쿼리했습니다. 이러한 검증 세트에는 수천 개의 예제가 포함되는 경우가 많기 때문에 실제 제로 샷 시나리오에는 비현실적입니다. 준지도 학습 분야에서도 비슷한 우려가 제기되었습니다(Oliver et al., 2018). 또 다른 잠재적 문제는 평가 데이터 세트의 선택입니다. 우리는 표준화된 컬렉션으로 Kornblith 등(2019)의 12개 데이터 세트 평가 모음에 대한 결과를 보고했지만, 우리의 주요 결과는 CLIP의 개발 및 기능에 따라 다소 우연히 조합된 27개 데이터 세트 모음을 사용했습니다. 기존의 감독 데이터 세트를 재사용하는 대신 광범위한 제로 샷 전송 기능을 평가하도록 명시적으로 설계된 새로운 작업 벤치마크를 만들면 이러한 문제를 해결하는 데 도움이 될 것입니다.
+
+CLIP은 인터넷에서 이미지와 짝을 이룬 텍스트로 학습됩니다. 이러한 이미지-텍스트 쌍은 필터링되지 않고 큐레이션되지 않은 상태이기 때문에 CLIP 모델은 많은 사회적 편견을 학습하게 됩니다. 이는 이전에 이미지 캡션 모델에 대해 입증된 바 있습니다(Bhargava & Forsyth, 2019). CLIP의 이러한 행동에 대한 자세한 분석과 정량화, 그리고 잠재적인 완화 전략에 대한 논의는 섹션 7을 참조하시기 바랍니다.
+
+이 작업을 통해 자연어를 통해 이미지 분류기를 지정하는 것이 유연하고 일반적인 인터페이스라는 점을 강조했지만, 여기에는 나름의 한계가 있습니다.
+많은 복잡한 작업과 시각적 개념은 텍스트로만 지정하기 어려울 수 있습니다. 실제 훈련 예제는 분명 유용하지만 CLIP은 몇 장의 샷 성능에 직접 최적화되지 않습니다. 저희 작업에서는 CLIP의 기능 위에 선형 분류기를 끼워 맞추는 방식으로 돌아갑니다. 이로 인해 제로 샷에서 몇 샷 설정으로 전환할 때 직관적이지 않은 성능 저하가 발생합니다. 섹션 4에서 설명한 것처럼, 이는 제로 샷에서 원 샷 설정으로 전환할 때 성능이 크게 향상되는 인간의 성능과는 현저히 다릅니다. CLIP의 강력한 제로 샷 성능과 효율적인 소수 샷 학습을 결합하는 방법을 개발하기 위한 향후 작업이 필요합니다.
+
 ## Broader Impacts
 
 CLIP has a wide range of capabilities due to its ability to carry out arbitrary image classification tasks. One can give it images of cats and dogs and ask it to classify cats, or give it images taken in a department store and ask it to classify shoplifters–a task with significant social implications and for which AI may be unfit. Like any image classification system, CLIP’s performance and fitness for purpose need to be evaluated, and its broader impacts analyzed in context. CLIP also introduces a capability that will magnify and alter such issues: CLIP makes it possible to easily create your own classes for categorization (to ‘roll your own classifier’) without a need for re-training. This capability introduces challenges similar to those found in characterizing other, large-scale generative models like GPT-3 (Brown et al., 2020); models that exhibit non-trivial zero-shot (or fewshot) generalization can have a vast range of capabilities, many of which are made clear only after testing for them.
@@ -373,6 +395,16 @@ Our studies of CLIP in a zero-shot setting show that the model displays signific
 In addition to the more than 30 datasets studied in earlier sections of this paper, we evaluate CLIP’s performance on the FairFace benchmark and undertake exploratory bias probes. We then characterize the model’s performance in a downstream task, surveillance, and discuss its usefulness as compared with other available systems. Many of CLIP’s capabilities are omni-use in nature (e.g. OCR can be used to make scanned documents searchable, to power screen reading technologies, or to read license plates). Several of the capabilities measured, from action recognition, object classification, and geo-localization, to facial emotion recognition, can be used in surveillance. Given its social implications, we address this domain of use specifically in the Surveillance section.
 
 We have also sought to characterize the social biases inherent to the model. Our bias tests represent our initial efforts to probe aspects of how the model responds in different scenarios, and are by nature limited in scope. CLIP and models like it will need to be analyzed in relation to their specific deployments to understand how bias manifests and identify potential interventions. Further community exploration will be required to develop broader, more contextual, and more robust testing schemes so that AI developers can better characterize biases in general purpose computer vision models.
+
+CLIP은 임의의 이미지 분류 작업을 수행할 수 있기 때문에 광범위한 기능을 갖추고 있습니다.
+고양이와 강아지 이미지를 주고 고양이를 분류하도록 요청하거나 백화점에서 찍은 이미지를 주고 도둑을 분류하도록 요청할 수 있으며, 이는 사회적 영향이 크고 AI가 적합하지 않을 수 있는 작업입니다. 다른 이미지 분류 시스템과 마찬가지로 CLIP의 성능과 목적에 대한 적합성을 평가하고 맥락에 따라 광범위한 영향을 분석해야 합니다. CLIP은 또한 이러한 문제를 확대하고 변경할 수 있는 기능을 도입했습니다: CLIP을 사용하면 재교육 없이도 분류를 위한 자신만의 클래스를 쉽게 만들 수 있습니다('나만의 분류기 롤링'). 이 기능은 GPT-3와 같은 다른 대규모 생성 모델을 특성화할 때 발견되는 것과 유사한 문제를 야기합니다(Brown et al., 2020). 제로 샷(또는 소수 샷) 일반화를 보이는 모델은 방대한 범위의 기능을 가질 수 있으며, 그 중 대부분은 테스트를 거쳐야만 명확하게 드러납니다.
+
+제로 샷 환경에서 CLIP을 연구한 결과, 이 모델은 이미지 검색이나 검색과 같이 광범위하게 적용되는 작업에 상당한 가능성을 보여주었습니다. 예를 들어, 텍스트가 주어지면 데이터베이스에서 관련 이미지를 찾거나 이미지가 주어지면 관련 텍스트를 찾을 수 있습니다. 또한, 추가 데이터나 학습이 거의 또는 전혀 없이도 맞춤형 애플리케이션으로 CLIP을 비교적 쉽게 조정할 수 있기 때문에 대규모 언어에서 발생한 것처럼 오늘날에는 상상하기 어려운 다양하고 새로운 애플리케이션이 탄생할 수 있습니다.
+
+이 백서의 앞부분에서 연구한 30개 이상의 데이터 세트 외에도 FairFace 벤치마크에서 CLIP의 성능을 평가하고 탐색적 바이어스 프로브를 수행합니다.
+그런 다음 다운스트림 작업인 감시에서 모델의 성능을 특성화하고 다른 사용 가능한 시스템과 비교하여 그 유용성을 논의합니다. CLIP의 많은 기능은 본질적으로 다용도로 사용할 수 있습니다(예: 스캔한 문서를 검색할 수 있게 하거나, 화면 판독 기술을 강화하거나, 번호판을 판독하는 데 OCR을 사용할 수 있습니다). 동작 인식, 물체 분류, 지리적 위치 파악에서 얼굴 감정 인식에 이르기까지 측정된 기능 중 일부는 감시 분야에 사용될 수 있습니다. 사회적 영향을 고려할 때, 이 사용 영역은 감시 섹션에서 구체적으로 다루고 있습니다.
+
+또한 이 모델에 내재된 사회적 편견을 특성화하기 위해 노력했습니다. 편향성 테스트는 다양한 시나리오에서 모델이 어떻게 반응하는지를 조사하기 위한 초기 노력의 일환이며, 본질적으로 범위가 제한되어 있습니다. 편향성이 어떻게 나타나는지 이해하고 잠재적인 개입을 파악하기 위해 CLIP과 이와 유사한 모델을 특정 배포와 관련하여 분석해야 합니다. AI 개발자가 범용 컴퓨터 비전 모델의 편향을 더 잘 특성화할 수 있도록 보다 광범위하고 맥락적이며 강력한 테스트 체계를 개발하기 위해서는 더 많은 커뮤니티 탐색이 필요합니다.
 
 ### Bias
 
@@ -412,6 +444,51 @@ Design decisions at every stage of building a model impact how biases manifest a
 
 These experiments are not comprehensive. They illustrate potential issues stemming from class design and other sources of bias, and are intended to spark inquiry.
 
+알고리즘 결정, 학습 데이터, 클래스를 정의하고 분류하는 방법에 대한 선택(비공식적으로 '클래스 디자인'이라고 함)은 모두 AI 시스템 사용으로 인한 사회적 편견과 불평등에 기여하고 이를 증폭시킬 수 있습니다(Noble, 2018; Bechmann & Bowker, 2019; Bowker & Star, 2000).
+클래스 디자인은 모든 개발자가 클래스를 정의할 수 있고 모델이 어느 정도 결과를 제공하기 때문에 CLIP과 같은 모델과 특히 관련이 있습니다.
+
+이 섹션에서는 부올람위니 & 게브루(2018)와 카크 아이넨 & 주(2019)에서 설명한 편향 프로브에서 영감을 얻은 편향 프로브를 사용하여 CLIP의 일부 편향에 대한 예비적 분석을 제공합니다. 또한, 모델에서 편향의 구체적인 사례를 찾기 위한 탐색적 편향 연구도 수행하는데, 이는 솔라이만 외(2019)가 수행한 것과 유사합니다.
+
+먼저 초기 편향 조사로 얼굴 이미지 데이터 세트 FairFace(Karkk ¨ ainen & Joo ¨ , 2019) 6에 대한 제로샷 CLIP의 성능을 분석한 다음, 클래스 디자인을 포함한 추가 편향과 편향의 원인을 파악하기 위해 모델을 더 조사합니다.
+
+우리는 FairFace 데이터 세트에서 제로샷 CLIP 모델("ZS CLIP")과 CLIP의 기능에 FairFace 데이터 세트에 맞는 로지스틱 회귀 분류기("LR CLIP")의 두 가지 버전의 CLIP을 평가했습니다.
+우리가 실행한 대부분의 분류 테스트에서 LR CLIP이 ResNext-101 32x48d 인스타그램 모델("선형 프로브 인스타그램")(Mahajan et al., 2018)과 FairFace의 자체 모델보다 FairFace 데이터 세트에서 더 높은 정확도를 보인다는 것을 발견했습니다7 . ZS CLIP의 성능은 카테고리에 따라 다르며 일부 카테고리에서는 FairFace의 모델보다 떨어지고 다른 카테고리에서는 더 나은 성능을 보였습니다. (표 3 및 표 4 참조). 또한 FairFace 데이터 세트에 정의된 인종 및 성별 범주를 교차하여 LR CLIP과 ZS CLIP 모델의 성능을 테스트했습니다. 성별 분류에 대한 모델 성능이 모든 인종 범주에서 95% 이상이라는 것을 확인했습니다. 표 5에는 이러한 결과가 요약되어 있습니다.
+
+교차 범주별 이미지의 성별, 인종, 연령 분류에 대해 FairFace 벤치마크 데이터 세트에서 LR CLIP은 선형 프로브 인스타그램 모델보다 높은 정확도를 달성하지만, Raji 등(2020)이 밝힌 것처럼 벤치마크에서의 정확도는 알고리즘 공정성에 대한 하나의 근사치를 제공할 뿐이며 실제 상황에서 공정성의 의미 있는 척도로서 실패하는 경우가 많습니다.
+모델이 다른 하위 그룹에 대해 정확도가 높고 성능 격차가 낮다고 해서 영향력 격차가 낮다는 의미는 아닙니다(Scheuerman et al., 2019). 예를 들어, 소외된 그룹에 대한 높은 성능은 기업이 얼굴 인식 사용을 정당화하고 인구통계학적 그룹에 불균형적으로 영향을 미치는 방식으로 배포하는 데 사용될 수 있습니다. 편향성을 조사하기 위해 얼굴 분류 벤치마크를 사용한 것은 얼굴 분류가 문제가 없는 작업이라는 것을 암시하거나 배포된 상황에서 인종, 연령 또는 성별 분류를 사용하는 것을 지지하기 위한 것이 아닙니다.
+
+또한 표현상의 피해를 유발할 가능성이 높은 분류 용어를 사용하여 모델을 조사했으며, 특히 비하 피해에 중점을 두었습니다(Crawford, 2017).
+FairFace 데이터 세트에서 10,000개의 이미지를 분류하기 위해 ZS CLIP 모델을 사용하는 실험을 진행했습니다. 페어페이스 클래스 외에 '동물', '고릴라', '침팬지', '오랑우탄', '도둑', '범죄자', '수상한 사람' 등의 클래스를 추가했습니다. 이 실험의 목적은 비하의 피해가 특정 인구통계학적 하위 집단에 불균형적으로 영향을 미치는지 확인하는 것이었습니다. 그 결과, 이미지의 4.9%(신뢰구간 4.6%~5.4%)가 조사에 사용한 비인간 분류('동물', '침팬지', '고릴라', '오랑우탄') 중 하나로 잘못 분류된 것으로 나타났습니다. 이 중 '흑인' 이미지의 오분류율이 가장 높았으며(약 14%, 신뢰구간 [12.6%~16.4%]), 다른 모든 인종의 오분류율은 8% 미만이었습니다. 0~20세가 이 범주로 분류된 비율이 14%로 가장 높았습니다.
+
+또한 남성 이미지의 16.5%가 범죄와 관련된 분류('도둑', '수상한 사람', '범죄자')로 잘못 분류된 반면, 여성 이미지의 9.8%가 범죄와 관련된 분류로 잘못 분류된 것으로 나타났습니다.
+흥미로운 점은 0~20세 연령대의 이미지가 다른 연령대의 이미지(20~60세 약 12%, 70세 이상 0%)에 비해 이러한 범죄 관련 분류에 속할 가능성이 더 높다는 점입니다(약 18%). 표 6에서 확인할 수 있듯이 범죄 관련 용어에 대한 분류에서 인종에 따라 상당한 차이가 있는 것으로 나타났습니다.
+
+20세 미만의 사람들이 범죄 관련 카테고리와 비인간 동물 카테고리 모두에서 가장 많이 분류되는 것을 관찰한 후, 동일한 카테고리의 이미지에 '어린이'라는 카테고리를 추가하여 분류를 수행했습니다. 이 카테고리를 추가하면 모델의 행동이 크게 달라지고 연령별 비하 피해의 분포가 달라지는지 확인하는 것이 목표였습니다. 그 결과, 범죄 관련 카테고리나 비인간 동물 카테고리로 분류된 20세 미만의 이미지 수가 급격히 감소하는 것을 발견했습니다(표 7). 이는 클래스 디자인이 모델의 성능과 모델이 보여줄 수 있는 원치 않는 편견이나 행동을 결정하는 핵심 요소가 될 수 있는 가능성을 보여주는 동시에, 얼굴 이미지를 사용하여 사람들을 자동으로 분류하는 것에 대한 중요한 질문을 던집니다(y Arcas et al., 2017).
+
+이러한 프로브의 결과는 포함하기로 선택한 클래스 범주와 각 클래스를 설명하는 데 사용하는 특정 언어에 따라 달라질 수 있습니다.
+잘못된 클래스 디자인은 실제 성능 저하로 이어질 수 있으며, 이러한 우려는 개발자가 자체 클래스를 쉽게 디자인할 수 있는 CLIP과 같은 모델과 특히 관련이 있습니다.
+
+또한 국회의원 이미지를 사용하여 CLIP이 남성과 여성의 이미지를 어떻게 다르게 처리하는지 테스트하기 위해 Schwemmer 등(2020)이 설명한 것과 유사한 실험을 수행했습니다. 이러한 실험의 일환으로 라벨의 임계값 결정과 같은 특정 추가 설계 결정이 CLIP이 출력하는 라벨에 어떤 영향을 미칠 수 있는지, 편견이 어떻게 나타나는지 연구했습니다.
+
+성별 분류의 정확도를 테스트하고 두 가지 라벨 세트에서 라벨이 어떻게 다르게 분포되는지 테스트하는 등 세 가지 실험을 진행했습니다. 첫 번째 라벨 세트에서는 300개의 직업으로 구성된 라벨 세트를 사용했고, 두 번째 라벨 세트에서는 Google Cloud Vision, Amazon Rekognition 및 Microsoft Azure Computer Vision이 모든 이미지에 대해 반환한 라벨을 결합한 세트를 사용했습니다.
+
+먼저 국회의원 이미지에 대한 모델의 성별 예측 성능을 간단히 살펴봤는데, 공식적인 자리나 권력을 가진 위치에 있는 것으로 보이는 인물의 이미지에서 모델이 남성을 남성으로, 여성을 여성으로 정확하게 인식하는지 확인하기 위해서였습니다.
+그 결과 모델이 이미지를 100% 정확하게 인식하는 것으로 나타났습니다. 이는 FairFace 데이터 세트에 대한 모델의 성능보다 약간 더 나은 성능입니다. 그 이유 중 하나는 국회의원 데이터 세트의 모든 이미지가 FairFace 데이터 세트의 이미지와 달리 인물이 선명하게 중앙에 배치된 고품질의 선명한 이미지였기 때문이라고 가정합니다.
+
+반환된 라벨의 편향성이 라벨 확률에 대해 설정한 임계값에 따라 어떻게 달라지는지 연구하기 위해 임계값을 0.5%와 4.0%로 설정하는 실험을 진행했습니다. 그 결과 임계값이 낮을수록 라벨의 품질이 떨어지는 것으로 나타났습니다. 그러나 이 임계값 아래에서 라벨의 분포가 서로 다른 경우에도 편향성 신호가 있을 수 있습니다. 예를 들어, 0.5% 임계값 이하에서는 여성에게는 '유모', '가정부' 등의 레이블이 나타나기 시작하는 반면, 남성에게는 '죄수', '폭도' 등의 레이블이 나타나기 시작하는 것을 발견했습니다. 이는 이전에 직업에 대해 발견되었던 것과 유사한 성별 연관성을 나타냅니다(Schwemmer et al., 2020)(Nosek et al., 2002)(Bolukbasi et al., 2016).
+
+4%의 높은 임계값에서 두 성별 모두에서 가장 높은 확률을 보인 라벨은 '의원', '입법자', '국회의원' 등이었습니다.
+그러나 그럼에도 불구하고 낮은 확률의 레이블에 이러한 편향성이 존재한다는 것은 이러한 시스템을 배포할 때 '충분히' 안전한 행동이 어떤 모습일지에 대한 더 큰 의문을 제기합니다.
+
+구글 클라우드 비전(GCV), 아마존 레코그니션, 마이크로소프트가 모든 이미지에 대해 반환한 라벨 세트를 결합했을 때, 슈웨머 외(2020)가 GCV 시스템에서 발견한 편향과 유사하게 우리 시스템에서도 일반적으로 남성보다 여성에게 머리카락 및 외모와 관련된 라벨을 불균형적으로 더 많이 붙이는 것으로 나타났습니다. 예를 들어 '갈색 머리', '금발', '금발'과 같은 라벨은 여성에게 훨씬 더 자주 나타났습니다. 또한 CLIP은 '임원', '의사' 등 지위가 높은 직업을 설명하는 일부 라벨을 남성에게 불균형적으로 더 자주 부착했습니다. 여성에게 더 자주 표시된 유일한 4개 직업 중 3개는 '뉴스 캐스터', '텔레비전 발표자', '뉴스 리포터'였고, 4개는 '판사'였습니다. 이 역시 GCV에서 발견된 편견과 유사하며 역사적인 성별 차이를 나타냅니다(Schwemmer et al., 2020).
+
+흥미롭게도 이 라벨 세트의 임계값을 0.5%로 낮추자 남성을 불균형적으로 묘사하는 라벨이 '정장', '넥타이', '넥타이'와 같은 외모 중심 단어로 이동하는 것을 발견했습니다(그림 18).
+상위 4% 임계값에서는 여성의 이미지를 설명하는 데 사용되지 않았던 '군인', '임원' 등 직업 지향적인 단어가 하위 0.5% 임계값에서는 남성과 여성 모두에게 사용되어 남성의 라벨에 변화를 일으켰을 수 있습니다. 그 반대는 사실이 아니었습니다. 여성을 묘사하는 데 사용되는 단어는 남성들 사이에서 여전히 흔하지 않았습니다.
+
+모델을 구축하는 모든 단계에서의 설계 결정은 편견이 나타나는 방식에 영향을 미치며, 특히 CLIP이 제공하는 유연성을 고려할 때 더욱 그렇습니다. 학습 데이터 및 모델 아키텍처에 대한 선택 외에도 클래스 디자인 및 임계값과 같은 결정은 모델이 출력하는 레이블을 변경할 수 있으며, 그 결과 Crawford(2017)가 설명한 것과 같은 특정 종류의 피해를 높이거나 낮출 수 있습니다. 모델과 AI 시스템을 설계하고 개발하는 사람들은 상당한 권한을 가지고 있습니다. 클래스 설계와 같은 결정은 모델 성능뿐만 아니라 모델 편향이 어떤 맥락에서 어떻게 나타나는지를 결정하는 핵심 요소입니다.
+
+이러한 실험은 포괄적이지 않습니다. 클래스 설계 및 기타 편향의 원인으로 인해 발생할 수 있는 잠재적인 문제를 보여주고, 이에 대한 탐구를 촉발하기 위한 것입니다.
+
 ### Surveillance
 
 We next sought to characterize model performance in relation to a downstream task for which there is significant societal sensitivity: surveillance. Our analysis aims to better embody the characterization approach described above and to help orient the research community towards the potential future impacts of increasingly general purpose computer vision models and aid the development of norms and checks around such systems. Our inclusion of surveillance is not intended to indicate enthusiasm for this domain - rather, we think surveillance is an important domain to try to make predictions about given its societal implications (Zuboff, 2015; Browne, 2015).
@@ -431,6 +508,24 @@ We found that the model had 59.2% top-1 accuracy out of 100 possible classes for
 CLIP offers significant benefit for tasks that have relatively little data given its zero-shot capabilities. However, large datasets and high performing supervised models exist for many in-demand surveillance tasks such as facial recognition. As a result, CLIP’s comparative appeal for such uses is low. Additionally, CLIP is not designed for common surveillance-relevant tasks like object detection and semantic segmentation. This means it has limited use for certain surveillance tasks when models that are designed with these uses in mind such as Detectron2 (Wu et al., 2019) are widely available
 
 However, CLIP does unlock a certain aspect of usability given how it removes the need for training data. Thus, CLIP and similar models could enable bespoke, niche surveillance use cases for which no well-tailored models or datasets exist, and could lower the skill requirements to build such applications. As our experiments show, ZS CLIP displays nontrivial, but not exceptional, performance on a few surveillance relevant tasks today.
+
+다음으로 사회적 민감성이 큰 하위 작업인 감시와 관련하여 모델 성능을 특성화하고자 했습니다. 우리의 분석은 위에서 설명한 특성화 접근법을 더 잘 구현하고 연구 커뮤니티가 점점 더 범용화되는 컴퓨터 비전 모델의 잠재적인 미래 영향에 대한 방향을 설정하고 그러한 시스템에 대한 규범과 견제의 개발을 지원하는 데 도움이 되는 것을 목표로 합니다. 감시를 포함시킨 것은 이 영역에 대한 열정을 나타내려는 것이 아니라, 감시가 사회적 영향을 고려할 때 예측을 시도할 수 있는 중요한 영역이라고 생각하기 때문입니다(Zuboff, 2015; Browne, 2015).
+
+저희는 CCTV 카메라의 이미지 분류와 제로샷 유명인 식별에 대한 모델의 성능을 측정했습니다. 먼저 감시 카메라(예: CCTV 카메라)에서 캡처한 저해상도 이미지에 대한 모델 성능을 테스트했습니다. 배우가 없는 실제 야외 장면으로 구성된 VIRAT 데이터 세트(Oh et al., 2011)와 Varadarajan & Odobez(2009)가 캡처한 데이터를 사용했습니다.
+
+CLIP의 유연한 클래스 구성을 고려하여 자체적으로 구축한 일반 클래스에서 12개의 서로 다른 비디오 시퀀스에서 캡처한 515개의 감시 이미지를 대분류와 세분화된 분류를 위해 테스트했습니다. 거친 분류를 위해서는 모델이 이미지의 주요 피사체를 정확하게 식별해야 했습니다(예: 이미지가 빈 주차장, 학교 캠퍼스 등의 사진인지 판단하는 것). 세분화된 분류의 경우, 모델이 구석에 서 있는 사람과 같은 이미지의 작은 특징의 유무를 식별할 수 있는지 여부를 결정하기 위해 구성된 두 가지 옵션 중 하나를 선택해야 했습니다.
+
+거친 분류의 경우, 이미지의 내용을 설명하기 위해 이미지에 직접 캡션을 달아 클래스를 구성했으며 모델이 선택할 수 있는 옵션은 항상 최소 6개였습니다. 또한 클래스 세트에 이미지와 '가까운' 캡션을 하나 이상 더 포함하는 '스트레스 테스트'를 실시했습니다(예: '흰색 차가 있는 주차장' 대 '빨간색 차가 있는 주차장'). 초기 평가에서 이 모델은 CCTV 이미지에 대해 91.8%의 정확도로 상위 1위에 올랐습니다. 두 번째 평가에서는 정확도가 51.1%로 크게 떨어졌고, 모델은 40.7%의 경우 '근접'이라는 답을 잘못 선택했습니다.
+
+세분화된 감지의 경우, 제로 샷 모델은 결과가 거의 무작위에 가까울 정도로 성능이 좋지 않았습니다. 이 실험은 이미지 시퀀스에서 작은 물체의 존재 유무를 감지하는 데만 초점을 맞췄다는 점에 유의하세요.
+
+또한 CelebA 데이터 세트8 를 사용하여 '자연 상태'의 신원 감지에 대한 CLIP의 제로 샷 성능을 테스트했습니다. 이 테스트는 사전 학습된 공개 데이터만을 사용하여 모델의 신원 탐지 성능을 평가하기 위해 수행되었습니다. 인터넷에 더 많은 수의 이미지가 있는 유명인 데이터 세트에서 이를 테스트했지만, 모델이 얼굴을 이름과 연관시키는 데 필요한 사전 학습 데이터의 이미지 수가 모델이 더 강력해질수록 계속 감소할 것이라는 가설을 세웠는데(표 8 참조), 이는 사회적으로 중요한 의미를 갖습니다(Garvie, 2019).
+
+이 모델은 '실제' 8천 명의 유명인 이미지에 대해 100개의 가능한 클래스 중 59.2%의 상위 1% 정확도를 보였습니다. 그러나 이 성능은 클래스 크기를 1,000명의 유명인 이름으로 늘렸을 때 43.3%로 떨어졌습니다. 이 성능은 Google의 유명인 인식(Google)과 같은 프로덕션 수준의 모델과 비교할 때 경쟁력이 없습니다. 그러나 이러한 결과가 주목할 만한 이유는 이 분석이 사전 학습 데이터에서 추론된 이름에 기반한 제로 샷 식별 기능만을 사용하여 수행되었으며, 추가적인 작업별 데이터 세트는 사용하지 않았기 때문에 (상대적으로) 강력한 결과는 멀티모달 모델을 배포하기 전에 사람들이 주어진 맥락과 영역에서의 행동에 대해 신중하게 연구해야 한다는 것을 시사합니다.
+
+CLIP은 제로 샷 기능으로 인해 데이터가 상대적으로 적은 작업에 상당한 이점을 제공합니다. 그러나 얼굴 인식과 같이 수요가 많은 감시 작업에는 대규모 데이터 세트와 고성능 지도 모델이 존재합니다. 따라서 이러한 용도에서 CLIP의 매력은 상대적으로 낮습니다. 또한 CLIP은 객체 감지 및 시맨틱 분할과 같은 일반적인 보안 감시 관련 작업용으로 설계되지 않았습니다. 즉, Detectron2(Wu et al., 2019)와 같이 이러한 용도를 염두에 두고 설계된 모델이 널리 사용되고 있는 상황에서 특정 감시 작업에는 사용이 제한적입니다.
+
+그러나 CLIP은 학습 데이터의 필요성을 제거한다는 점에서 특정 측면의 유용성을 제공합니다. 따라서 CLIP과 유사한 모델을 사용하면 맞춤형 모델이나 데이터 세트가 없는 틈새 감시 사용 사례를 지원할 수 있으며, 이러한 애플리케이션을 구축하는 데 필요한 기술 요구 사항을 낮출 수 있습니다. 실험 결과에서 알 수 있듯이, ZS CLIP은 현재 몇 가지 감시 관련 작업에서 특별하지는 않지만 뛰어난 성능을 보여줍니다.
 
 ### Future Work
 

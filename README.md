@@ -4,7 +4,7 @@
 
 ### 기존 방식의 문제점
 
-- Vision에서의 사전학습은 고정된 class에 대한 분류 학습을 통해 이루어짐.
+- Vision Pretrain은 고정된 class에 대한 분류 학습을 통해 이루어짐.
 하지만 고정된 class만 예측하다 보니 class 이외의 객체를 예측하는 Zero-Shot 성능이 약함.
 
 - 분류 학습을 위해선 각 이미지 별로 다수결의 사람이 선정한 golden-label이 필요함
@@ -12,65 +12,65 @@
 
 ### 논문이 제안하는 방식
 
-- 웹에서 크롤링한 4억개의 text-image 데이터를 이용해 vision encoder를 학습시킴.
+- Contrastive Loss를 이용해 Image-Text 쌍의 데이터에 대해 학습을 진행.
     classification이 아니기 때문에 제한된 class에 국한되지 않고 zero shot 성능이 월등히 뛰어남
 
-- text model, vision model를 같이 학습 시켜 text model의 `인식력`을 vision model에 포함할 수 잇음.
-  
-- classification이 아니기에 NLP와 같이 웹에서 크롤링한 대량의 image-text를 통해 학습을 하는 것이 가능함.
-  그리고 이런 방식을 통해 기존 vision model보다 여러 task에서 SOTA를 달성할 수 있었음.
-
-- 이전에 제시된 ConVIRT의 구조를 따와, CLIP만의 방식으로 학습을 시도 함.
-
-- 왜 Contrastive Learning를 사용?
-  - `vision model의 성능을 높이기 위해 text model을 사용하는 방식은 이전부터 있어 왔었음.
-  주로 text model이 image와 매칭된 txt를 예측하는 방식으로 vision model의 성능을 높혀 왔음.
-  - 다만 text model의 큰 용량과 txt 상의 노이즈(설명, 주석) 등으로 인하여 기존 방식 대비 3배 느린 단점이 존재함.
-  - `그래서 CLIP은 기존 방식 대신 contrastive learning을 통해 문제를 해결 함
+- golden label이 필요로 하지 않기 때문에 크롤링을 통해 데이터를 대량으로 구축할 수 있음.
+    학습을 위한 마땅한 데이터가 없어서 4억 쌍의 Image-Caption 쌍으로 구성된 WIP 데이터를 구축
 
 ## Introduction and Motivating Work
 
-- NLP에선 웹에서 크롤링된 대량의 데이터로 CLM, MLM 등의 비지도 학습을 진행해 각 분야의 SOTA를 달성함.
-이는 저품질의 데이터로도 SOTA를 달성할 수 있는 방법이 있음을 시사함.
+- NLP에서 원시 텍스트로만 Pretrain하는 CLM, MLM 방식이 공개됨
+    Pretrain을 위해 굳이 golden label로 학습할 필요가 없다는 사실이 입증 되었음.
 
-- Vision에선 크라우드 소싱을 통한 고품질의 데이터를 통해 사전학습을 진행함.
-NLP와 같이 웹에서 크롤링이 된 대량의 image-text 쌍의 데이터로 사전학습하는 방법을 연구함.
+- 하지만 Vision에선 여전히 많은 자원을 들여서 만든 Golden label로만 Pretrain하는 방식이 사용되고 있음.
+    이전부터 Vision Pretrain에 자연어 사용이 꾸준히 제안되어 왔지만 기존 방식 대비 낮은 성능 때문에 활발히 연구되질 못함.
 
-- 이전에도 image-text 쌍의 데이터를 이용해 vision 모델을 학습시키는 방법이 연구되어 왔음.
-  1. 1999년, [Y. Mori](https://www.semanticscholar.org/paper/Image-to-word-transformation-based-on-dividing-and-Mori-Takahashi/8b29ffb4207435540ddecf4b14a8a32106b33830)와 같은 연구자 들이 이미지 검색을 위해 이미지-문서 쌍의 데이터에서 명사, 형용사를 예측하는 학습법을 제안 함.
-  2. 2007년, [Quattoni, A](https://www.cs.upc.edu/~aquattoni/AllMyPapers/cvpr_07.pdf)와 같은 연구자 들이 이미지-캡션 쌍의 데이터에서 부분적으로 캡션의 단어를 예측하도록 만들어 분류기를 통해 이미지에 대한 표현을 학습할 수 있다는 것을 증명 함.
-  3. 2012년, [Srivastava, N.](https://papers.nips.cc/paper_files/paper/2012/hash/af21d0c97db2e27e13572cbf59eb343d-Abstract.html)는 이미지-태그 쌍의 데이터에서 저수준의 이미지를 태그와 함께 Deep Boltzmann 모델을 사용해 이미지속에 포함된 특징을 학습하는 방법을 제안 함.
-  여기서 말하는 저수준은 저수준의 정보로 조도, RGB와 같은 데이터를 뜻함. 반대로 고수준은 이미지속의 객체와 같은 추상적인 정보들을 뜻함.
-  4. 2016년, [Joulin](*)는 이미지-캡션 쌍의 데이터에서 부분적으로 캡션의 단어를 에측하는 방식을 통해 CNN이 이미지에 대한 표현을 학습할 수 있다는 것을 증명 함.
-  5. 2017년, [Li](*)는 이미지-캡션 쌍의 데이터에서 개별적인 단어 이외의 N-Gram을 통한 구문 예측을 통해 Zero-Shot 성능을 입증 함.
-  6. 2020년, [Desai & Johnson](*)의 VirTex, ICMLM(Bulent Sariyildiz 외, 2020), ConVIRT(Zhang 외, 2020)는 CLM과 MLM을 통해 이미지의 표현을 학습시킬 수 있다는 것을 입증 함.
+    Golden label: 다수결의 사람에 의해 선택된 데이터의 라벨,
+    예: 사진 보여주고 `이 사진 고양이 일까 아닐까` 했을 때 다수의 사람이 고양이라 하면 1, 아니라 하면 0 이런식으로 만드는 방식
+    다수의 사람을 통해 만들어 지다 보니 품질은 좋은데 만들기갸 힘듬
 
-- 이미지의 표현을 학습하는데 NLP을 사용하고자 하는 방법이 꾸준이 제안되어 왔지만 기존 방식 대비 낮은 성능 때문에 연구가 많이 진척되지 않음.
-그리고 사전학습에 적은 양의 고품질 데이터, 많은 양의 저품질 데이터를 이용해 학습시켜도 Softmax를 이용한 분류를 통해 모델을 학습하다 보니
-학습한 class 이외의 다른 class에 대한 Zero-Shot 성능이 떨어짐.
+- 현재 높은 품질을 가진 재한된 양의 label(Golden-label)과 낮은 품질을 가진 무한한 향의 label(원시 텍스트)를 이용한 Pretrain 기법이 주를 이룸
+    우린 이 두 Pretrain기법의 중간 지점에 있는 기법인 CLIP을 제안함.
 
 ## Approach
 
 ### Natural Language Supervision
 
-- 기존에 자연어를 Vision 모델 훈련에 사용하기 위해 N-Gram, Topic 모델링을 통해 학습시켜 옴.
-하지만 최근 들어 CLM, MLM 방식이 제안 되면서 웹에서 크롤링이 된 저품질의 데이터로 부터 표현을 학습할 수 있는 방법이 제안됨.
+- 기존 Vision Pretrain은 Softmax를 이용한 clasification을 통해 시각적 정보를 학습해 왔음.
+    하지만 학습한 class외의 다른 class에 대한 Zero-Shot 성능이 제한되는 문제가 있었음
 
-- 우리의 접근 방식은 자연어를 Vision 모델의 라벨로 사용하는 것을 제안함.
-자연어를 이용해 Vision 모델을 학습시키면 다음과 같은 장점이 있음
-  1. 데이터를 수집하기가 쉬워짐
-  2. 자연어와
+- 자연어를 통한 Pretrain은 Vision clasification대비 데이터를 통한 확장이 용이함.
+    CLM, MLM를 통해 Text를 `단순` 보는 것이 아닌 언어적인 표현을 이해하기 때문에 유연한 Zero-Shot이 가능.
 
 ### Creating a Sufficiently Large Dataset
 
-- 기존 Vision 모델을 사전학습 하기 위해 MS-COCO(10만장), Visual-Genome(10만장), YFCC100M(35억장)등을 사용해 왔음
-하지만 각 데이터 별로 품질이 일정하지 않으며, 3개의 데이터에서 학습에 사용할 수 있는 데이터만 필터링 하면 1,500만 장만 남게 됨.
+- 기존 Vision Pretrain에서 사용하던 MS-COCO, Visual Genome, YFCC100M를 그대로 사용하기에는 다음과 같은 문제가 있음.
+    1. MS-COCO, Visual Genome 데이터를 사용하기엔 양이 적음.
+    2. YFCC100M는 품질이 일정하지 않아 사용할 수 있는 데이터가 적음.
 
-- 자연어를 통한 Vision 모델 사전학습은 데이터의 품질에 많은 제약을 받지 않는 장점이 있음.
-그래서 다양한 도메인의 웹에서 크롤링된 4억장으로 구성된 이미지-캡션 쌍의 데이터를 구축해 사전학습에 사용 함.
-다양한 도메인의 웹: 대략 50만개의 검색어를 이용해 웹에서 검색해 텍스트를 구축 함.
+- 문제 해결를 위해 인터넷에서 수집한 4억 장의 Image-Text 쌍으로 구성된 WebImageText(WIT)를 구축해 pretrain에 사용. (WIT는 공개 X)
 
 ### Selecting an Efficient Pre-Training Method
+
+- Vision Pretrain을 하기 위해 많은 양의 자원이 필요로 함.
+    EfficientNet-L2을 Pretrain하기 위해 1대의 TPU로 33년이 걸림.
+
+- CNN과 Transformer를 합친 VirTex는 Image-Caption 쌍의 데이터의 Caption을 구성하는 Text를 생성하는 방식으로 학습을 진행함.
+    하지만 ResNet-50에 비해 3배 이상 느리면서 2배 많은 연산량을 필요로 하게 됨.
+    Text를 생성하는 방식으로 학습을 진행하면 Text상에 존재하는 노이즈도 같이 예측되어서 속도도 더 느려짐
+
+- Vision Classification조차 많은 자원이 들어가는 상황에서 Vision-Text는 부담스러울 정도의 자원이 필요
+    Pretrain에서의 학습 효율성은 모델 개발에 중요한 요소
+
+- Text를 생성하는 대신 Image-Text 쌍을 올바르게 매칭하는 것을 목표로 하는 Contrastive Loss를 사용
+    N개의 Image-Text 쌍의 데이터에서 N개의 Positive(올바르게 매칭된 이미지와 텍스트 쌍)의 유사도는 최대화, (N x 2) - N개의 negative(잘못 매칭된 이미지와 텍스트 쌍)의 유사도를 최소화 시키는 방식으로 학습을 진행
+    이후 N x N의 행렬에서 대각선상의 존재하는 N개의 값에 대해서 CrossEntropy를 진행해 loss를 계산.
+
+- 새로 구축된 WIT의 성능 비교를 위해 CLIP은 Scratch부터 Pretrain 함.
+    데이터가 크기 때문에 학습 시 과적합은 크게 고려하지 않았음
+    Vision, language Encoder에서 출력된 각 신호의 크기를 맞추기 위해 Linear Projection을 사용
+    Non-Linear Proejction과 Linear Projection간의 성능적 차이는 없었다고 함.(특이하네)
 
 ### Choosing and Scaling a Model
 
